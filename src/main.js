@@ -1,35 +1,26 @@
-import { Client, Users } from 'node-appwrite';
+const http = require('http');
+const httpProxy = require('http-proxy');
 
-// This Appwrite function will be executed every time your function is triggered
-export default async ({ req, res, log, error }) => {
-  // You can use the Appwrite SDK to interact with other services
-  // For this example, we're using the Users service
-  const client = new Client()
-    .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
-    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setKey(req.headers['x-appwrite-key'] ?? '');
-  const users = new Users(client);
+// Create a proxy server
+const proxy = httpProxy.createProxyServer({
+    changeOrigin: true,
+    autoRewrite: true,
+    cookieDomainRewrite: '',
+    cookiePathRewrite: '/'
+});
 
-  try {
-    const response = await users.list();
-    // Log messages and errors to the Appwrite Console
-    // These logs won't be seen by your end users
-    log(`Total users: ${response.total}`);
-  } catch(err) {
-    error("Could not list users: " + err.message);
-  }
+module.exports = async function (req, res) {
+    // Set the target URL (YouTube in this case)
+    const targetUrl = 'https://www.youtube.com';
 
-  // The req object contains the request data
-  if (req.path === "/ping") {
-    // Use res object to respond with text(), json(), or binary()
-    // Don't forget to return a response!
-    return res.text("Pong");
-  }
+    // Handle proxy errors
+    proxy.on('error', (err, req, res) => {
+        res.writeHead(500, {
+            'Content-Type': 'text/plain'
+        });
+        res.end('Something went wrong.');
+    });
 
-  return res.json({
-    motto: "Build like a team of hundreds_",
-    learn: "https://appwrite.io/docs",
-    connect: "https://appwrite.io/discord",
-    getInspired: "https://builtwith.appwrite.io",
-  });
+    // Proxy the request
+    proxy.web(req, res, { target: targetUrl });
 };
